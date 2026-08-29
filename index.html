@@ -2,10 +2,13 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>駐車場コイン計算｜金コイン在庫切れ対応</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;700;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%234a8cff'/%3E%3Ctext x='16' y='23' font-size='21' font-family='Helvetica,Arial' font-weight='bold' fill='%23fff' text-anchor='middle'%3EP%3C/text%3E%3C/svg%3E">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;700;900&family=JetBrains+Mono:wght@400;600&display=swap');
 
 :root {
   --bg: #0a0a0e;
@@ -348,14 +351,14 @@ body {
     <div class="field-gap"></div>
     <div class="field-label">入庫時刻</div>
     <div class="time-row">
-      <input id="inTime" class="time-input" type="text" placeholder="1930" maxlength="4" inputmode="numeric" oninput="handleInput(this)" onfocus="this.select()">
+      <input id="inTime" class="time-input" type="text" placeholder="1930" maxlength="4" inputmode="numeric" autocomplete="off" enterkeyhint="done" oninput="handleInput(this)" onfocus="this.select()">
     </div>
     <div class="err-msg" id="inErr"></div>
 
     <div class="field-gap"></div>
     <div class="field-label">現在時刻</div>
     <div class="time-row">
-      <input id="nowTime" class="time-input" type="text" placeholder="2045" maxlength="4" inputmode="numeric" oninput="handleInput(this)" onfocus="this.select()">
+      <input id="nowTime" class="time-input" type="text" placeholder="2045" maxlength="4" inputmode="numeric" autocomplete="off" enterkeyhint="done" oninput="handleInput(this)" onfocus="this.select()">
       <button class="now-btn" onclick="setNow()">今の<br>時刻</button>
     </div>
     <div class="err-msg" id="nowErr"></div>
@@ -548,8 +551,9 @@ function calcCoins(inMin, exitMin) {
 }
 
 function exitOf(inMin, nowMin) {
-  const rawStay = nowMin - inMin;
-  return rawStay > 120 ? inMin + 120 : nowMin + 5;
+  // 移動時間5分を足したうえで、無料特典の上限120分で必ず打ち切る
+  // （上限で切らないと20:00をまたいだ瞬間に夜間ブロックが1つ増えてしまう）
+  return Math.min(nowMin + 5, inMin + 120);
 }
 
 function yenOf(inMin, nowMin) {
@@ -667,7 +671,17 @@ function calculate() {
   // --- 案内文 ---
   document.getElementById('scriptBox').textContent =
     buildScript(gold, silver, showSilver, totalYen, rawStay > 120);
+
+  // スマホで結果が画面外に隠れないように移動する
+  resultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
+
+// 入力欄でEnter（スマホの「完了」）を押しても計算できるようにする
+['inTime', 'nowTime'].forEach(function (id) {
+  document.getElementById(id).addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); this.blur(); calculate(); }
+  });
+});
 
 function buildScript(gold, silver, showSilver, totalYen, over) {
   let t;
