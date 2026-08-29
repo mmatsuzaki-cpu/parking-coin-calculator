@@ -677,7 +677,8 @@ function calculate() {
     buildScript(gold, silver, showSilver, totalYen, rawStay > 120);
 
   // スマホで結果が画面外に隠れないように移動する
-  resultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // （smooth は環境によって無視されるため、確実に動く即時スクロールを使う）
+  resultCard.scrollIntoView({ block: 'start' });
 }
 
 // 入力欄でEnter（スマホの「完了」）を押しても計算できるようにする
