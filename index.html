@@ -337,8 +337,8 @@ body {
   <div class="card">
     <div class="field-label">金コインの在庫</div>
     <div class="stock-row">
-      <button class="stock-btn have" id="stockHave" onclick="setStock(true)">🟡 在庫あり</button>
-      <button class="stock-btn out on" id="stockOut" onclick="setStock(false)">🚫 在庫なし</button>
+      <button class="stock-btn have on" id="stockHave" onclick="setStock(true)">🟡 在庫あり</button>
+      <button class="stock-btn out" id="stockOut" onclick="setStock(false)">🚫 在庫なし</button>
     </div>
     <div class="rate-hint">
       <b>金コイン＝200円分</b>　／　<i>銀コイン＝100円分</i><br>
@@ -461,7 +461,7 @@ body {
 <script>
 var GOLD_YEN = 200;
 var SILVER_YEN = 100;
-var goldInStock = false;
+var goldInStock = true;
 
 function setStock(has) {
   goldInStock = has;
