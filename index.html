@@ -587,7 +587,11 @@ function calculate() {
 
   if (!inT) { inErrEl.textContent = '正しい時刻を入力してください（例: 1930）'; inEl.classList.add('err'); ok = false; }
   if (!nowT) { nowErrEl.textContent = '正しい時刻を入力してください（例: 2045）'; nowEl.classList.add('err'); ok = false; }
-  if (!ok) return;
+  if (!ok) {
+    // 古い結果が残っていると誤った枚数を読まれるので隠す
+    document.getElementById('resultCard').classList.remove('show');
+    return;
+  }
 
   let inMin = toMin(inT.h, inT.m);
   let nowMin = toMin(nowT.h, nowT.m);
