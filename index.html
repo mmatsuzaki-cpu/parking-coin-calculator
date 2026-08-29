@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>駐車場コイン計算｜金コイン在庫切れ対応</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;700;900&family=JetBrains+Mono:wght@400;600&display=swap');
+
+:root {
+  --bg: #0a0a0e;
+  --surface: #13131a;
+  --surface2: #1c1c26;
+  --border: #2a2a3a;
+  --border2: #35354a;
+  --gold: #f0c040;
+  --gold2: #ffd97a;
+  --gold-bg: #2a2000;
+  --gold-border: #5a4500;
+  --silver: #a8bcc8;
+  --silver2: #c8dde8;
+  --silver-bg: #141e24;
+  --silver-border: #2a4050;
+  --accent: #4a8cff;
+  --ok: #3ecf8e;
+  --ok-bg: #0d2419;
+  --ok-border: #1d5c3d;
+  --danger: #ff5566;
+  --warn: #ff9944;
+  --warn-bg: #2a1a06;
+  --warn-border: #6b4213;
+  --text: #dde0f0;
+  --text-muted: #6a6a88;
+  --text-dim: #9090b0;
+  --radius: 14px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: 40px;
+}
+
+.header {
+  width: 100%;
+  background: linear-gradient(180deg, #0d0d14 0%, #0a0a0e 100%);
+  border-bottom: 1px solid var(--border);
+  padding: 18px 20px 14px;
+  text-align: center;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+.header h1 { font-size: 16px; font-weight: 900; letter-spacing: 0.15em; }
+.header-sub { font-size: 10px; color: var(--text-muted); margin-top: 2px; letter-spacing: 0.1em; }
+
+.container {
+  width: 100%;
+  max-width: 460px;
+  padding: 16px 14px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+.field-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+/* ===== 在庫トグル ===== */
+.stock-row { display: flex; gap: 8px; }
+.stock-btn {
+  flex: 1;
+  background: var(--surface2);
+  border: 1.5px solid var(--border2);
+  border-radius: 10px;
+  color: var(--text-dim);
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-size: 13px;
+  font-weight: 900;
+  padding: 13px 8px;
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  transition: all 0.15s;
+}
+.stock-btn.on.out  { background: #2a0d12; border-color: var(--danger); color: var(--danger); }
+.stock-btn.on.have { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); }
+
+.rate-hint {
+  margin-top: 10px;
+  background: var(--surface2);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 11px; font-weight: 700; line-height: 1.6;
+  color: var(--text-dim);
+}
+.rate-hint b { color: var(--gold2); }
+.rate-hint i { font-style: normal; color: var(--silver2); }
+
+.time-row { display: flex; gap: 8px; align-items: stretch; }
+
+.time-input {
+  flex: 1;
+  background: var(--surface2);
+  border: 1.5px solid var(--border2);
+  border-radius: 10px;
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 36px;
+  font-weight: 600;
+  padding: 12px 14px;
+  text-align: center;
+  letter-spacing: 0.04em;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  -webkit-appearance: none;
+  width: 100%;
+}
+.time-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(74,140,255,0.12); }
+.time-input.err { border-color: var(--danger); }
+.time-input::placeholder { color: var(--border2); font-size: 30px; }
+
+.now-btn {
+  background: var(--surface2);
+  border: 1.5px solid var(--border2);
+  border-radius: 10px;
+  color: var(--accent);
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  letter-spacing: 0.06em;
+  line-height: 1.3;
+  text-align: center;
+}
+.now-btn:active { background: var(--accent); color: #fff; border-color: var(--accent); transform: scale(0.96); }
+
+.field-gap { height: 12px; }
+
+.calc-btn {
+  background: linear-gradient(135deg, #3a7aee 0%, #2258cc 100%);
+  border: none;
+  border-radius: 12px;
+  color: #fff;
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-size: 15px;
+  font-weight: 900;
+  padding: 16px;
+  cursor: pointer;
+  width: 100%;
+  letter-spacing: 0.12em;
+  transition: all 0.15s;
+  box-shadow: 0 4px 18px rgba(58,122,238,0.28);
+  margin-top: 4px;
+}
+.calc-btn:active { transform: scale(0.98); }
+
+.err-msg { font-size: 11px; color: var(--danger); margin-top: 5px; min-height: 16px; }
+
+.result-card { display: none; flex-direction: column; gap: 18px; animation: fadeUp 0.3s ease; }
+.result-card.show { display: flex; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== メイン指示 ===== */
+.headline {
+  border-radius: 12px;
+  padding: 18px 16px 16px;
+  text-align: center;
+  border: 1.5px solid var(--silver-border);
+  background: linear-gradient(145deg,#0e1c28,#182a38);
+}
+.headline .h-label {
+  font-size: 10px; font-weight: 900; letter-spacing: 0.18em; color: var(--text-muted);
+}
+.headline .h-main {
+  margin-top: 8px;
+  font-size: 17px; font-weight: 900; color: var(--silver2); letter-spacing: 0.03em;
+}
+.headline .h-main .big {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 52px; font-weight: 600; line-height: 1; vertical-align: -6px;
+}
+.headline .h-sub { margin-top: 9px; font-size: 12px; font-weight: 700; color: var(--text-dim); line-height: 1.65; }
+
+/* ===== コイン ===== */
+.coins-row { display: flex; gap: 10px; align-items: stretch; }
+
+.coin-block {
+  flex: 1;
+  border-radius: 12px;
+  padding: 14px 8px 12px;
+  text-align: center;
+  border: 2px solid transparent;
+  transition: all 0.3s;
+  position: relative;
+}
+.coin-block.gold-b { background: var(--gold-bg); border-color: var(--gold-border); }
+.coin-block.gold-b.lit { background: linear-gradient(145deg,#2a1a00,#3d2800); border-color: var(--gold); box-shadow: 0 0 28px rgba(240,192,64,0.18); }
+.coin-block.silver-b { background: var(--silver-bg); border-color: var(--silver-border); }
+.coin-block.silver-b.lit { background: linear-gradient(145deg,#0e1c28,#182a38); border-color: var(--silver); box-shadow: 0 0 28px rgba(168,188,200,0.18); }
+.coin-block.dead { opacity: 0.4; filter: grayscale(0.75); box-shadow: none; }
+
+.coin-icon { font-size: 24px; line-height: 1; margin-bottom: 3px; }
+.coin-label { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; margin-bottom: 4px; }
+.gold-b .coin-label { color: var(--gold); }
+.silver-b .coin-label { color: var(--silver); }
+.coin-count { font-family: 'JetBrains Mono', monospace; font-size: 44px; font-weight: 600; line-height: 1; }
+.gold-b .coin-count { color: var(--gold2); }
+.silver-b .coin-count { color: var(--silver2); }
+.coin-unit { font-size: 11px; font-weight: 700; margin-top: 3px; opacity: 0.6; }
+.coin-worth { font-size: 9.5px; font-weight: 700; color: var(--text-muted); margin-top: 6px; letter-spacing: 0.04em; }
+
+.out-tag {
+  position: absolute; top: 7px; right: 7px;
+  background: var(--danger); color: #fff;
+  font-size: 9px; font-weight: 900; letter-spacing: 0.08em;
+  padding: 3px 6px; border-radius: 5px;
+  display: none;
+}
+.out-tag.show { display: block; }
+
+.swap-arrow {
+  flex: 0 0 26px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; font-weight: 900; color: var(--text-muted);
+}
+
+/* ===== 情報行 ===== */
+.info-row {
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--surface2); border-radius: 10px; padding: 12px 16px; font-size: 13px;
+}
+.info-row + .info-row { margin-top: 6px; }
+.info-row .ir-label { color: var(--text-muted); font-weight: 700; font-size: 12px; }
+.info-row .ir-val { font-family: 'JetBrains Mono', monospace; color: var(--text); font-size: 15px; }
+.info-row.step .ir-val { color: var(--ok); }
+
+.section-label { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; }
+
+.breakdown-list { display: flex; flex-direction: column; gap: 6px; }
+
+.bk-item {
+  background: var(--surface2); border-radius: 10px; padding: 11px 14px;
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  border-left: 3px solid transparent;
+}
+.bk-item.z1 { border-left-color: var(--gold); }
+.bk-item.z2s { border-left-color: var(--silver); }
+.bk-item.z2g { border-left-color: var(--gold); }
+
+.bk-time { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); flex-shrink: 0; min-width: 108px; }
+.bk-desc { font-size: 11px; color: var(--text-muted); flex: 1; line-height: 1.4; }
+.bk-coins { font-size: 12px; font-weight: 900; flex-shrink: 0; text-align: right; }
+.bk-coins.gold { color: var(--gold2); }
+.bk-coins.silver { color: var(--silver2); }
+
+.alert { border-radius: 10px; padding: 11px 14px; font-size: 12px; font-weight: 700; line-height: 1.6; display: none; }
+.alert.show { display: block; }
+.alert.danger { background: rgba(255,85,102,0.1); border: 1px solid rgba(255,85,102,0.35); color: var(--danger); }
+.alert.warning { background: var(--warn-bg); border: 1px solid var(--warn-border); color: var(--warn); }
+
+/* ===== 案内文 ===== */
+.script-box {
+  background: #0e0e14;
+  border: 1px dashed var(--border2);
+  border-radius: 10px;
+  padding: 13px 14px;
+  font-size: 12.5px;
+  line-height: 1.85;
+  color: var(--text-dim);
+  white-space: pre-wrap;
+}
+.copy-btn {
+  margin-top: 8px;
+  width: 100%;
+  background: var(--surface2);
+  border: 1.5px solid var(--border2);
+  border-radius: 10px;
+  color: var(--text-dim);
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.08em;
+  padding: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.copy-btn:active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+.rule-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; }
+.rule-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 10px; }
+.rule-table th { text-align: left; color: var(--text-muted); font-weight: 700; padding: 3px 6px 8px 0; font-size: 10px; letter-spacing: 0.08em; border-bottom: 1px solid var(--border); }
+.rule-table td { padding: 8px 6px 8px 0; color: var(--text); border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: top; line-height: 1.6; }
+.rule-table td:first-child { color: var(--text-muted); white-space: nowrap; }
+
+.tag { display: inline-block; border-radius: 4px; padding: 1px 5px; font-size: 9px; font-weight: 700; letter-spacing: 0.06em; vertical-align: middle; }
+.tag.gold { background: var(--gold-bg); color: var(--gold); border: 1px solid var(--gold-border); }
+.tag.silver { background: var(--silver-bg); color: var(--silver); border: 1px solid var(--silver-border); }
+
+.note { font-size: 10px; color: var(--text-muted); margin-top: 10px; line-height: 1.85; border-top: 1px solid var(--border); padding-top: 10px; }
+.note b { color: var(--text-dim); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🅿️ 駐車場コイン計算</h1>
+  <div class="header-sub">金コイン在庫切れ対応版</div>
+</div>
+
+<div class="container">
+
+  <div class="card">
+    <div class="field-label">金コインの在庫</div>
+    <div class="stock-row">
+      <button class="stock-btn have" id="stockHave" onclick="setStock(true)">🟡 在庫あり</button>
+      <button class="stock-btn out on" id="stockOut" onclick="setStock(false)">🚫 在庫なし</button>
+    </div>
+    <div class="rate-hint">
+      <b>金コイン＝200円分</b>　／　<i>銀コイン＝100円分</i><br>
+      金コイン1枚は <b>銀コイン2枚</b> で代替できます。
+    </div>
+
+    <div class="field-gap"></div>
+    <div class="field-label">入庫時刻</div>
+    <div class="time-row">
+      <input id="inTime" class="time-input" type="text" placeholder="1930" maxlength="4" inputmode="numeric" oninput="handleInput(this)" onfocus="this.select()">
+    </div>
+    <div class="err-msg" id="inErr"></div>
+
+    <div class="field-gap"></div>
+    <div class="field-label">現在時刻</div>
+    <div class="time-row">
+      <input id="nowTime" class="time-input" type="text" placeholder="2045" maxlength="4" inputmode="numeric" oninput="handleInput(this)" onfocus="this.select()">
+      <button class="now-btn" onclick="setNow()">今の<br>時刻</button>
+    </div>
+    <div class="err-msg" id="nowErr"></div>
+
+    <button class="calc-btn" onclick="calculate()">計 算 す る</button>
+  </div>
+
+  <div class="card result-card" id="resultCard">
+
+    <div class="headline" id="headline">
+      <div class="h-label" id="hLabel">お 渡 し す る コ イ ン</div>
+      <div class="h-main" id="hMain">—</div>
+      <div class="h-sub" id="hSub">—</div>
+    </div>
+
+    <div class="alert" id="alertBox"></div>
+
+    <div class="coins-row">
+      <div class="coin-block gold-b" id="goldBlock">
+        <div class="out-tag" id="goldOutTag">在庫なし</div>
+        <div class="coin-icon">🟡</div>
+        <div class="coin-label">金コイン</div>
+        <div class="coin-count" id="goldCount">0</div>
+        <div class="coin-unit">枚</div>
+        <div class="coin-worth">200円分／枚</div>
+      </div>
+      <div class="swap-arrow" id="swapArrow">→</div>
+      <div class="coin-block silver-b" id="silverBlock">
+        <div class="coin-icon">⚪</div>
+        <div class="coin-label">銀コイン</div>
+        <div class="coin-count" id="silverCount">0</div>
+        <div class="coin-unit">枚</div>
+        <div class="coin-worth">100円分／枚</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="info-row">
+        <span class="ir-label">計算上の滞在時間</span>
+        <span class="ir-val" id="stayMin">— 分</span>
+      </div>
+      <div class="info-row">
+        <span class="ir-label">駐車料金の合計</span>
+        <span class="ir-val" id="totalYen">— 円</span>
+      </div>
+      <div class="info-row step">
+        <span class="ir-label">次に料金が上がる時刻</span>
+        <span class="ir-val" id="nextStep">—</span>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">料金内訳</div>
+      <div class="breakdown-list" id="breakdownList"></div>
+    </div>
+
+    <div>
+      <div class="section-label">お客様への案内文</div>
+      <div class="script-box" id="scriptBox">—</div>
+      <button class="copy-btn" onclick="copyScript()" id="copyBtn">案内文をコピー</button>
+    </div>
+
+  </div>
+
+  <div class="rule-card">
+    <div class="field-label">料金ルール</div>
+    <table class="rule-table">
+      <thead><tr><th>時間帯</th><th>通常料金</th><th>コイン</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>昼間<br>8:00〜20:00</td>
+          <td>20分 / 200円<br>上限120分</td>
+          <td>
+            20分ごとに<br>
+            <span class="tag gold">金</span>×1（= <span class="tag silver">銀</span>×2）<br>
+            最大 <span class="tag gold">金</span>×6
+          </td>
+        </tr>
+        <tr>
+          <td>夜間<br>20:00〜翌8:00</td>
+          <td>60分 / 100円<br>上限120分</td>
+          <td>
+            〜60分 <span class="tag silver">銀</span>×1<br>
+            〜120分 <span class="tag gold">金</span>×1<br>
+            （= <span class="tag silver">銀</span>×2）
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="note">
+      ※ 無料特典は<b>最大2時間・1人1日1回まで</b>です<br>
+      ※ 滞在120分以内の場合、移動時間5分を自動加算します<br>
+      ※ 滞在120分超の場合、ちょうど120分で打ち切り計算します<br>
+      ※ 時間帯をまたぐ場合、各区間の開始時刻の時間帯で料金を判定します<br>
+      ※ ご利用の際は<b>利用証明書</b>を必ず店舗までお持ちいただきます<br>
+      ※ 不足分は<b>現金やQR決済等</b>でご精算いただけます<br>
+      ※ コインのみでの精算時は<b>領収書が出ません</b>
+    </div>
+  </div>
+
+</div>
+
+<script>
+var GOLD_YEN = 200;
+var SILVER_YEN = 100;
+var goldInStock = false;
+
+function setStock(has) {
+  goldInStock = has;
+  document.getElementById('stockHave').classList.toggle('on', has);
+  document.getElementById('stockOut').classList.toggle('on', !has);
+  if (document.getElementById('resultCard').classList.contains('show')) calculate();
+}
+
+function handleInput(el) {
+  el.value = el.value.replace(/\D/g,'').slice(0,4);
+}
+
+function setNow() {
+  const d = new Date();
+  document.getElementById('nowTime').value =
+    String(d.getHours()).padStart(2,'0') + String(d.getMinutes()).padStart(2,'0');
+  document.getElementById('nowTime').classList.remove('err');
+  document.getElementById('nowErr').textContent = '';
+}
+
+function parseTime(s) {
+  s = s.trim();
+  if (!/^\d{3,4}$/.test(s)) return null;
+  const h = s.length === 3 ? parseInt(s[0]) : parseInt(s.slice(0,2));
+  const m = parseInt(s.slice(-2));
+  if (h < 0 || h > 23 || m < 0 || m > 59) return null;
+  return { h, m };
+}
+
+function toMin(h, m) { return h * 60 + m; }
+
+function minToStr(t) {
+  t = ((t % 1440) + 1440) % 1440;
+  return String(Math.floor(t/60)).padStart(2,'0') + ':' + String(t%60).padStart(2,'0');
+}
+
+function getZone(minuteOfDay) {
+  const m = ((minuteOfDay % 1440) + 1440) % 1440;
+  return (m >= 480 && m < 1200) ? 'zone1' : 'zone2';
+}
+
+/* 元の計算ロジックをそのまま使用 */
+function calcCoins(inMin, exitMin) {
+  let gold = 0, silver = 0;
+  const segments = [];
+  let cur = inMin;
+  let zone1BlockStart = null;
+
+  while (cur < exitMin) {
+    const zone = getZone(cur);
+
+    if (zone === 'zone1') {
+      if (zone1BlockStart === null) zone1BlockStart = cur;
+      if (cur - zone1BlockStart >= 120) break;
+
+      const blockEnd = cur + 20;
+      const actualEnd = Math.min(blockEnd, exitMin);
+      gold += 1;
+      segments.push({ from: cur, to: actualEnd, zone: 'z1', desc: '昼間 ' + (actualEnd - cur) + '分', coinClass: 'gold', coinLabel: '金×1 / 200円' });
+      cur = blockEnd;
+
+    } else {
+      zone1BlockStart = null;
+      const zoneBlockEnd = cur + 120;
+      const dur = Math.min(exitMin, zoneBlockEnd) - cur;
+      if (dur <= 0) break;
+
+      if (dur <= 60) {
+        silver += 1;
+        segments.push({ from: cur, to: Math.min(exitMin, cur + dur), zone: 'z2s', desc: '夜間 ' + dur + '分', coinClass: 'silver', coinLabel: '銀×1 / 100円' });
+      } else {
+        gold += 1;
+        segments.push({ from: cur, to: Math.min(exitMin, cur + dur), zone: 'z2g', desc: '夜間 ' + dur + '分（60分超）', coinClass: 'gold', coinLabel: '金×1 / 200円' });
+      }
+
+      if (zoneBlockEnd <= exitMin && getZone(zoneBlockEnd) === 'zone2') {
+        cur = exitMin;
+      } else {
+        cur = zoneBlockEnd;
+      }
+    }
+  }
+  return { gold, silver, segments };
+}
+
+function exitOf(inMin, nowMin) {
+  const rawStay = nowMin - inMin;
+  return rawStay > 120 ? inMin + 120 : nowMin + 5;
+}
+
+function yenOf(inMin, nowMin) {
+  const r = calcCoins(inMin, exitOf(inMin, nowMin));
+  return r.gold * GOLD_YEN + r.silver * SILVER_YEN;
+}
+
+/* 次に料金が上がる時刻（上限に達していれば null） */
+function nextStepUp(inMin, nowMin) {
+  const base = yenOf(inMin, nowMin);
+  for (let t = nowMin + 1; t <= inMin + 120; t++) {
+    if (yenOf(inMin, t) > base) return { at: t, left: t - nowMin };
+  }
+  return null;
+}
+
+function calculate() {
+  const inEl = document.getElementById('inTime');
+  const nowEl = document.getElementById('nowTime');
+  const inErrEl = document.getElementById('inErr');
+  const nowErrEl = document.getElementById('nowErr');
+
+  inErrEl.textContent = '';
+  nowErrEl.textContent = '';
+  inEl.classList.remove('err');
+  nowEl.classList.remove('err');
+
+  const inT = parseTime(inEl.value);
+  const nowT = parseTime(nowEl.value);
+  let ok = true;
+
+  if (!inT) { inErrEl.textContent = '正しい時刻を入力してください（例: 1930）'; inEl.classList.add('err'); ok = false; }
+  if (!nowT) { nowErrEl.textContent = '正しい時刻を入力してください（例: 2045）'; nowEl.classList.add('err'); ok = false; }
+  if (!ok) return;
+
+  let inMin = toMin(inT.h, inT.m);
+  let nowMin = toMin(nowT.h, nowT.m);
+  if (nowMin <= inMin) nowMin += 1440;
+
+  const rawStay = nowMin - inMin;
+  const exitMin = exitOf(inMin, nowMin);
+  const stayMin = exitMin - inMin;
+
+  const { gold, silver, segments } = calcCoins(inMin, exitMin);
+  const totalYen = gold * GOLD_YEN + silver * SILVER_YEN;
+
+  // 在庫なしのときは金コインぶんを銀コイン2枚ずつに置き換える
+  const showGold   = goldInStock ? gold : 0;
+  const showSilver = goldInStock ? silver : silver + gold * 2;
+
+  const resultCard = document.getElementById('resultCard');
+  resultCard.classList.add('show');
+
+  // --- メイン指示 ---
+  const parts = [];
+  if (showGold > 0)   parts.push('金コイン <span class="big">' + showGold + '</span> 枚');
+  if (showSilver > 0) parts.push('銀コイン <span class="big">' + showSilver + '</span> 枚');
+  document.getElementById('hMain').innerHTML = parts.length ? parts.join(' ＋ ') : 'コイン不要';
+
+  let sub;
+  if (!goldInStock && gold > 0) {
+    sub = '金コイン' + gold + '枚ぶんを銀コイン' + (gold * 2) + '枚に置き換えています。<br>合計 ' + totalYen + '円分です。';
+  } else if (totalYen === 0) {
+    sub = '料金が発生していません。';
+  } else {
+    sub = '合計 ' + totalYen + '円分です。';
+  }
+  document.getElementById('hSub').innerHTML = sub;
+
+  // --- コイン枚数 ---
+  document.getElementById('goldCount').textContent = showGold;
+  document.getElementById('silverCount').textContent = showSilver;
+  document.getElementById('goldBlock').classList.toggle('lit', showGold > 0);
+  document.getElementById('silverBlock').classList.toggle('lit', showSilver > 0);
+  document.getElementById('goldBlock').classList.toggle('dead', !goldInStock);
+  document.getElementById('goldOutTag').classList.toggle('show', !goldInStock);
+  document.getElementById('swapArrow').textContent = goldInStock ? '＋' : '→';
+
+  document.getElementById('stayMin').textContent = stayMin + ' 分';
+  document.getElementById('totalYen').textContent = totalYen + ' 円';
+
+  const step = nextStepUp(inMin, nowMin);
+  document.getElementById('nextStep').textContent =
+    step ? minToStr(step.at) + '（あと' + step.left + '分）' : '上限に到達';
+
+  // --- 警告 ---
+  const alertBox = document.getElementById('alertBox');
+  if (stayMin < 1) {
+    alertBox.textContent = '滞在時間が0分以下です。時刻を確認してください。';
+    alertBox.className = 'alert show danger';
+  } else if (rawStay > 720) {
+    alertBox.textContent = '滞在時間が12時間を超えています。入力を確認してください。';
+    alertBox.className = 'alert show warning';
+  } else if (rawStay > 120) {
+    alertBox.textContent = '無料特典の上限（2時間）を超えています。超過分はお客様に現金・QR決済等でご精算いただいてください。';
+    alertBox.className = 'alert show warning';
+  } else {
+    alertBox.className = 'alert';
+  }
+
+  // --- 内訳 ---
+  const list = document.getElementById('breakdownList');
+  list.innerHTML = '';
+  segments.forEach(seg => {
+    const div = document.createElement('div');
+    div.className = 'bk-item ' + seg.zone;
+    div.innerHTML = `
+      <span class="bk-time">${minToStr(seg.from)} → ${minToStr(Math.min(seg.to, exitMin))}</span>
+      <span class="bk-desc">${seg.desc}</span>
+      <span class="bk-coins ${seg.coinClass}">${seg.coinLabel}</span>
+    `;
+    list.appendChild(div);
+  });
+
+  // --- 案内文 ---
+  document.getElementById('scriptBox').textContent =
+    buildScript(gold, silver, showSilver, totalYen, rawStay > 120);
+}
+
+function buildScript(gold, silver, showSilver, totalYen, over) {
+  let t;
+  if (!goldInStock && gold > 0) {
+    t = '大変申し訳ございません。本日は金コインの在庫を切らしております。\n'
+      + '金コイン1枚（200円分）は銀コイン2枚と同額ですので、'
+      + '本日は銀コイン' + showSilver + '枚（' + totalYen + '円分）をお渡しいたします。\n'
+      + '精算機で金額が表示されましたら、そのまま銀コインをお入れください。';
+  } else if (totalYen === 0) {
+    t = '本日は駐車料金が発生しておりませんので、コインのお渡しはございません。';
+  } else {
+    t = 'こちらのコインをお使いください。（'
+      + (gold > 0 ? '金コイン' + gold + '枚' : '')
+      + (gold > 0 && silver > 0 ? '・' : '')
+      + (silver > 0 ? '銀コイン' + silver + '枚' : '')
+      + '／' + totalYen + '円分）\n'
+      + '精算機で金額が表示されましたら、そのままコインをお入れください。';
+  }
+  if (over) {
+    t += '\n無料特典は最大2時間までとなりますので、超過分は現金またはQR決済等でご精算をお願いいたします。';
+  }
+  t += '\n※コインのみでのご精算の場合、領収書は発行されませんのでご了承ください。';
+  return t;
+}
+
+function copyScript() {
+  const t = document.getElementById('scriptBox').textContent;
+  const btn = document.getElementById('copyBtn');
+  const done = () => { btn.textContent = 'コピーしました ✓'; setTimeout(() => { btn.textContent = '案内文をコピー'; }, 1600); };
+
+  function fallback() {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = t;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      done();
+    } catch (e2) {
+      btn.textContent = 'コピーできませんでした';
+      setTimeout(() => { btn.textContent = '案内文をコピー'; }, 1600);
+    }
+  }
+
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(t).then(done, fallback);
+    } else { fallback(); }
+  } catch (e) { fallback(); }
+}
+</script>
+</body>
+</html>
